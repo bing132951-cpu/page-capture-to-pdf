@@ -30,7 +30,7 @@
 进入项目目录：
 
 ```bash
-cd "/Users/weixukai/Downloads/spide前端"
+cd /path/to/page-capture-to-pdf
 python3 -m venv .venv
 source .venv/bin/activate
 .venv/bin/pip install .
