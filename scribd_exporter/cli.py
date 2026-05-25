@@ -20,7 +20,8 @@ def build_parser() -> argparse.ArgumentParser:
     collect_parser.add_argument("--image-selector", help="CSS selector for image elements.")
     collect_parser.add_argument("--scroll-container-selector", help="CSS selector for the scroll container.")
     collect_parser.add_argument("--max-steps", type=int, help="Maximum collection steps.")
-    collect_parser.add_argument("--delay-ms", type=int, help="Delay between collection steps in milliseconds.")
+    collect_parser.add_argument("--delay-ms", type=int, help="Legacy alias for step delay in milliseconds.")
+    collect_parser.add_argument("--step-delay-ms", type=int, help="Fixed delay between collection steps in milliseconds.")
     collect_parser.add_argument("--scroll-ratio", type=float, help="Scroll distance as a ratio of viewport height.")
     collect_parser.add_argument("--no-new-limit", type=int, help="Stop after this many no-new cycles in scroll mode.")
     collect_parser.add_argument("--min-width", type=int, help="Minimum image width.")
@@ -30,7 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
     collect_parser.add_argument("--next-button-selector", help="CSS selector for the next-page button in paginate mode.")
     collect_parser.add_argument("--page-indicator-selector", help="CSS selector for the page indicator text.")
     collect_parser.add_argument("--max-pages", type=int, help="Optional hard limit for collected pages.")
-    collect_parser.add_argument("--click-delay-ms", type=int, help="Wait after clicking next in paginate mode.")
+    collect_parser.add_argument("--click-delay-ms", type=int, help="Legacy alias for max wait after clicking next.")
+    collect_parser.add_argument("--click-min-wait-ms", type=int, help="Minimum fixed wait after clicking next in paginate mode.")
+    collect_parser.add_argument("--click-max-wait-ms", type=int, help="Maximum total wait window after clicking next in paginate mode.")
     collect_parser.add_argument("--max-unchanged-steps", type=int, help="Stop after this many unchanged transitions.")
 
     export_parser = subparsers.add_parser("export", help="Export a PDF from a URL list or JSON file.")
@@ -99,6 +102,7 @@ def _collector_options_from_args(args) -> dict:
         "scrollContainerSelector": args.scroll_container_selector,
         "maxSteps": args.max_steps,
         "delayMs": args.delay_ms,
+        "stepDelayMs": args.step_delay_ms,
         "scrollRatio": args.scroll_ratio,
         "noNewLimit": args.no_new_limit,
         "minWidth": args.min_width,
@@ -109,6 +113,8 @@ def _collector_options_from_args(args) -> dict:
         "pageIndicatorSelector": args.page_indicator_selector,
         "maxPages": args.max_pages,
         "clickDelayMs": args.click_delay_ms,
+        "clickMinWaitMs": args.click_min_wait_ms,
+        "clickMaxWaitMs": args.click_max_wait_ms,
         "maxUnchangedSteps": args.max_unchanged_steps,
     }
 

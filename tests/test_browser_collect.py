@@ -84,6 +84,7 @@ class BrowserCollectTests(unittest.TestCase):
         self.assertEqual(options["pageNumberPattern"], "auto")
         self.assertEqual(options["maxSteps"], 12)
         self.assertEqual(options["delayMs"], 150)
+        self.assertEqual(options["stepDelayMs"], 150)
 
     def test_normalize_collector_options_requires_selector_for_paginate_mode(self) -> None:
         with self.assertRaises(ValueError):
@@ -96,7 +97,8 @@ class BrowserCollectTests(unittest.TestCase):
                 "nextButtonSelector": ".next",
                 "pageIndicatorSelector": ".pager",
                 "maxPages": "20",
-                "clickDelayMs": "900",
+                "clickMinWaitMs": "900",
+                "clickMaxWaitMs": "1600",
                 "maxUnchangedSteps": "4",
             }
         )
@@ -104,8 +106,36 @@ class BrowserCollectTests(unittest.TestCase):
         self.assertEqual(options["nextButtonSelector"], ".next")
         self.assertEqual(options["pageIndicatorSelector"], ".pager")
         self.assertEqual(options["maxPages"], 20)
-        self.assertEqual(options["clickDelayMs"], 900)
+        self.assertEqual(options["clickMinWaitMs"], 900)
+        self.assertEqual(options["clickMaxWaitMs"], 1600)
         self.assertEqual(options["maxUnchangedSteps"], 4)
+
+    def test_normalize_collector_options_maps_legacy_wait_fields(self) -> None:
+        options = normalize_collector_options(
+            {
+                "mode": "paginate",
+                "nextButtonSelector": ".next",
+                "delayMs": "700",
+                "clickDelayMs": "1800",
+            }
+        )
+        self.assertEqual(options["stepDelayMs"], 700)
+        self.assertEqual(options["delayMs"], 700)
+        self.assertEqual(options["clickMinWaitMs"], 1000)
+        self.assertEqual(options["clickMaxWaitMs"], 1800)
+        self.assertEqual(options["clickDelayMs"], 1800)
+
+    def test_normalize_collector_options_clamps_max_wait_to_min_wait(self) -> None:
+        options = normalize_collector_options(
+            {
+                "mode": "paginate",
+                "nextButtonSelector": ".next",
+                "clickMinWaitMs": "2200",
+                "clickMaxWaitMs": "1200",
+            }
+        )
+        self.assertEqual(options["clickMinWaitMs"], 2200)
+        self.assertEqual(options["clickMaxWaitMs"], 2200)
 
 
 if __name__ == "__main__":

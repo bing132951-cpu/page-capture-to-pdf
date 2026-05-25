@@ -1,6 +1,8 @@
 import os
+import subprocess
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 from typing import Optional
 
 from .models import PageImage
@@ -11,6 +13,14 @@ USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/136.0.0.0 Safari/537.36"
 )
+
+SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+SUPPORTED_CONTENT_TYPES = {
+    "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
 
 
 class DownloadError(RuntimeError):
@@ -42,10 +52,50 @@ def download_page_image(page: PageImage, output_dir: str, cookie: Optional[str] 
 
     if status != 200:
         raise DownloadError(page.page_number, page.image_url, f"HTTP {status} while downloading")
-    if content_type and "jpeg" not in content_type.lower():
-        raise DownloadError(page.page_number, page.image_url, f"expected JPEG content, got {content_type or 'unknown'}")
-    if data[:2] != b"\xff\xd8":
-        raise DownloadError(page.page_number, page.image_url, "downloaded file is not a JPEG image")
-    with open(target_path, "wb") as handle:
+    if _is_jpeg_response(content_type, data):
+        with open(target_path, "wb") as handle:
+            handle.write(data)
+        return target_path
+
+    source_extension = _infer_source_extension(page.image_url, content_type)
+    if not source_extension:
+        raise DownloadError(
+            page.page_number,
+            page.image_url,
+            f"unsupported image content, expected JPEG/PNG/WebP but got {content_type or 'unknown'}",
+        )
+
+    source_path = os.path.join(output_dir, f"page-{page.page_number:04d}{source_extension}")
+    with open(source_path, "wb") as handle:
         handle.write(data)
+    _convert_to_jpeg_with_sips(page, source_path, target_path)
     return target_path
+
+
+def _is_jpeg_response(content_type: str, data: bytes) -> bool:
+    lowered = (content_type or "").lower()
+    return "jpeg" in lowered or data[:2] == b"\xff\xd8"
+
+
+def _infer_source_extension(image_url: str, content_type: str) -> str:
+    lowered_type = (content_type or "").split(";")[0].strip().lower()
+    if lowered_type in SUPPORTED_CONTENT_TYPES:
+        return SUPPORTED_CONTENT_TYPES[lowered_type]
+
+    path = urlparse(image_url).path.lower()
+    for extension in SUPPORTED_IMAGE_EXTENSIONS:
+        if path.endswith(extension):
+            return extension
+    return ""
+
+
+def _convert_to_jpeg_with_sips(page: PageImage, source_path: str, target_path: str) -> None:
+    result = subprocess.run(
+        ["sips", "-s", "format", "jpeg", source_path, "--out", target_path],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not os.path.exists(target_path):
+        stderr = (result.stderr or result.stdout or "").strip() or "unknown conversion error"
+        raise DownloadError(page.page_number, page.image_url, f"failed to convert image to JPEG ({stderr})")

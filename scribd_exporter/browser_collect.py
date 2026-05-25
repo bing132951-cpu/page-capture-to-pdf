@@ -21,6 +21,7 @@ DEFAULT_COLLECTOR_OPTIONS = {
     "mode": "scroll",
     "maxSteps": 220,
     "delayMs": 800,
+    "stepDelayMs": 800,
     "scrollRatio": 1.2,
     "noNewLimit": 18,
     "imageSelector": "img",
@@ -33,6 +34,8 @@ DEFAULT_COLLECTOR_OPTIONS = {
     "pageIndicatorSelector": "",
     "maxPages": "",
     "clickDelayMs": 1000,
+    "clickMinWaitMs": 1000,
+    "clickMaxWaitMs": 2500,
     "maxUnchangedSteps": 3,
 }
 
@@ -43,6 +46,7 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
     mode: "scroll",
     maxSteps: 220,
     delayMs: 800,
+    stepDelayMs: 800,
     scrollRatio: 1.2,
     noNewLimit: 18,
     imageSelector: "img",
@@ -55,6 +59,8 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
     pageIndicatorSelector: "",
     maxPages: "",
     clickDelayMs: 1000,
+    clickMinWaitMs: 1000,
+    clickMaxWaitMs: 2500,
     maxUnchangedSteps: 3
   }, userConfig || {});
 
@@ -302,7 +308,7 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
 
   async function runScrollMode() {
     scrollToTop();
-    await sleep(config.delayMs);
+    await sleep(config.stepDelayMs);
 
     let noNewCount = 0;
     let lastScrollY = -1;
@@ -314,7 +320,7 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
       const addedBefore = collectOnce();
       const beforeY = getScrollTop();
       scrollByRatio(config.scrollRatio);
-      await sleep(config.delayMs);
+      await sleep(config.stepDelayMs);
       const addedAfter = collectOnce();
       const afterY = getScrollTop();
       const addedTotal = addedBefore + addedAfter;
@@ -359,10 +365,16 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
   }
 
   async function waitForVisibleChange(previousSignature) {
-    const deadline = Date.now() + Math.max(200, config.clickDelayMs);
+    await sleep(config.clickMinWaitMs);
+    const remainingWindow = Math.max(0, config.clickMaxWaitMs - config.clickMinWaitMs);
+    const deadline = Date.now() + remainingWindow;
+    let currentSignature = buildVisibleSignature();
+    if (currentSignature !== previousSignature) {
+      return true;
+    }
     while (Date.now() < deadline) {
       await sleep(200);
-      const currentSignature = buildVisibleSignature();
+      currentSignature = buildVisibleSignature();
       if (currentSignature !== previousSignature) {
         return true;
       }
@@ -374,7 +386,7 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
     let stopReason = "max_steps";
     let stopDetails = `Reached configured maxSteps=${config.maxSteps}.`;
 
-    await sleep(config.delayMs);
+    await sleep(config.stepDelayMs);
 
     for (let i = 0; i < config.maxSteps; i++) {
       stats.stepsRun = i + 1;
@@ -419,6 +431,8 @@ COLLECTOR_SCRIPT_TEMPLATE = r"""
         stopDetails = `Stopped after ${stats.unchangedSteps} unchanged page transitions.`;
         break;
       }
+
+      await sleep(config.stepDelayMs);
     }
 
     collectOnce(true);
@@ -527,13 +541,18 @@ def build_collector_expression(options: Dict) -> str:
 
 def normalize_collector_options(options: Optional[Dict]) -> Dict:
     merged = dict(DEFAULT_COLLECTOR_OPTIONS)
-    if options:
-        merged.update({key: value for key, value in options.items() if value not in (None, "")})
+    provided = options or {}
+    if provided:
+        merged.update({key: value for key, value in provided.items() if value not in (None, "")})
     merged["mode"] = str(merged.get("mode", "scroll")).strip().lower() or "scroll"
     if merged["mode"] not in {"scroll", "paginate"}:
         raise ValueError("collector mode must be either 'scroll' or 'paginate'.")
     merged["maxSteps"] = max(1, int(merged["maxSteps"]))
-    merged["delayMs"] = max(100, int(merged["delayMs"]))
+    if "stepDelayMs" in provided and str(provided.get("stepDelayMs", "")).strip():
+        merged["stepDelayMs"] = max(100, int(merged["stepDelayMs"]))
+    else:
+        merged["stepDelayMs"] = max(100, int(merged["delayMs"]))
+    merged["delayMs"] = merged["stepDelayMs"]
     merged["scrollRatio"] = max(0.1, float(merged["scrollRatio"]))
     merged["noNewLimit"] = max(1, int(merged["noNewLimit"]))
     merged["minWidth"] = max(0, int(merged["minWidth"]))
@@ -544,7 +563,17 @@ def normalize_collector_options(options: Optional[Dict]) -> Dict:
     merged["pageNumberPattern"] = str(merged["pageNumberPattern"]).strip() or "auto"
     merged["nextButtonSelector"] = str(merged.get("nextButtonSelector", "")).strip()
     merged["pageIndicatorSelector"] = str(merged.get("pageIndicatorSelector", "")).strip()
-    merged["clickDelayMs"] = max(100, int(merged.get("clickDelayMs", 1000)))
+    if "clickMinWaitMs" in provided and str(provided.get("clickMinWaitMs", "")).strip():
+        merged["clickMinWaitMs"] = max(100, int(merged["clickMinWaitMs"]))
+    else:
+        merged["clickMinWaitMs"] = max(100, int(DEFAULT_COLLECTOR_OPTIONS["clickMinWaitMs"]))
+    if "clickMaxWaitMs" in provided and str(provided.get("clickMaxWaitMs", "")).strip():
+        merged["clickMaxWaitMs"] = max(100, int(merged["clickMaxWaitMs"]))
+    else:
+        merged["clickMaxWaitMs"] = max(100, int(merged.get("clickDelayMs", 1000)))
+    if merged["clickMaxWaitMs"] < merged["clickMinWaitMs"]:
+        merged["clickMaxWaitMs"] = merged["clickMinWaitMs"]
+    merged["clickDelayMs"] = merged["clickMaxWaitMs"]
     merged["maxUnchangedSteps"] = max(1, int(merged.get("maxUnchangedSteps", 3)))
     merged["maxPages"] = int(merged["maxPages"]) if str(merged.get("maxPages", "")).strip() else ""
     if merged["mode"] == "paginate" and not merged["nextButtonSelector"]:

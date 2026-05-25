@@ -55,7 +55,7 @@ Serving JPG-to-PDF web app at http://127.0.0.1:8765/
 网页里有两条主路径：
 
 1. 输入目标网页 URL，选择收集模式后点击“启动 Chrome 并收集”
-2. 直接粘贴或上传已有的 JPG/JPEG URL 列表
+2. 直接粘贴或上传已有的图片 URL 列表
 
 收集模式说明：
 
@@ -105,8 +105,9 @@ python3 -m scribd_exporter.cli export \
 说明：
 
 - TXT 文件中一行一个 URL
-- 只支持 `http/https` 的 `.jpg/.jpeg` 链接
+- 支持 `http/https` 的 `.jpg/.jpeg/.png/.webp` 链接
 - PDF 页序按 TXT 行顺序决定
+- `png/webp` 会在本机自动转成 JPEG 后写入 PDF
 - 任意一张图片下载失败会立即停止，并指出失败页号和 URL
 
 如果不想自动打开浏览器：
@@ -117,7 +118,7 @@ python3 -m scribd_exporter.webapp --no-open
 
 ## Notes
 
-- 第一版只支持 JPG/JPEG，不支持 PNG、WebP
+- 当前导出支持 JPG/JPEG，且会把 PNG/WebP 自动转成 JPEG 后写入 PDF
 - 收集器会新开一个项目专用 Chrome 实例，不复用你平时浏览器的标签页或登录状态
 - `paginate` 模式第一版只支持显式 `nextButtonSelector`，不做自动猜测
 - 产物是图片型 PDF，不包含文字层或 OCR

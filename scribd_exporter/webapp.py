@@ -278,7 +278,7 @@ INDEX_HTML = """<!doctype html>
         gap: 18px;
       }
       label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 600; }
-      textarea, input[type="text"] {
+      textarea, input[type="text"], select {
         width: 100%;
         border: 1px solid var(--border);
         border-radius: 6px;
@@ -286,6 +286,12 @@ INDEX_HTML = """<!doctype html>
         font: inherit;
         color: var(--ink);
         background: white;
+      }
+      .field-note {
+        margin-top: 6px;
+        font-size: 12px;
+        line-height: 1.45;
+        color: var(--muted);
       }
       textarea { min-height: 250px; resize: vertical; }
       pre {
@@ -338,54 +344,110 @@ INDEX_HTML = """<!doctype html>
   <body>
     <div class="shell">
       <div class="header">
-        <h1>JPG Links to PDF</h1>
-        <p>输入目标网页 URL 让工具启动项目专用 Chrome 自动收集懒加载 JPG/JPEG 链接，或者直接粘贴已有链接列表，再按顺序生成单个 PDF。</p>
+        <h1>Image Links to PDF</h1>
+        <p>输入目标网页 URL，让工具启动项目专用 Chrome 自动收集图片链接（Image Links），或者直接粘贴已有链接列表，再按顺序生成单个 PDF。</p>
       </div>
       <div class="panel grid">
         <div>
           <label for="targetUrl">目标网页地址</label>
           <input id="targetUrl" type="text" placeholder="https://example.com/document/123" />
           <div style="height: 14px;"></div>
-          <label for="collectorMode">收集模式</label>
-          <select id="collectorMode" style="width:100%;border:1px solid var(--border);border-radius:6px;padding:12px 14px;font:inherit;color:var(--ink);background:white;">
+          <label for="collectorMode">收集模式 / Collector Mode</label>
+          <select id="collectorMode">
             <option value="scroll" selected>scroll（滚动加载）</option>
             <option value="paginate">paginate（点击下一页）</option>
           </select>
           <div style="height: 14px;"></div>
-          <label for="collectorSettings">收集器设置</label>
+          <label for="collectorSettings">收集器设置 / Collector Settings</label>
           <div id="collectorSettings" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:14px;">
-            <div><label for="maxSteps">maxSteps</label><input id="maxSteps" type="text" value="220" /></div>
-            <div><label for="delayMs">delayMs</label><input id="delayMs" type="text" value="800" /></div>
-            <div class="scroll-only"><label for="scrollRatio">scrollRatio</label><input id="scrollRatio" type="text" value="1.2" /></div>
-            <div class="scroll-only"><label for="noNewLimit">noNewLimit</label><input id="noNewLimit" type="text" value="18" /></div>
-            <div><label for="minWidth">minWidth</label><input id="minWidth" type="text" value="180" /></div>
-            <div><label for="minHeight">minHeight</label><input id="minHeight" type="text" value="180" /></div>
-            <div style="grid-column:1 / -1;"><label for="imageSelector">imageSelector</label><input id="imageSelector" type="text" value="img" /></div>
-            <div class="scroll-only" style="grid-column:1 / -1;"><label for="scrollContainerSelector">scrollContainerSelector</label><input id="scrollContainerSelector" type="text" value="" placeholder="留空表示 window 滚动" /></div>
-            <div class="paginate-only" style="grid-column:1 / -1;display:none;"><label for="nextButtonSelector">nextButtonSelector</label><input id="nextButtonSelector" type="text" value="" placeholder=".flip_button_right.button" /></div>
-            <div class="paginate-only" style="grid-column:1 / -1;display:none;"><label for="pageIndicatorSelector">pageIndicatorSelector</label><input id="pageIndicatorSelector" type="text" value="" placeholder=".page-number, .pager, [aria-label*='page']" /></div>
-            <div class="paginate-only" style="display:none;"><label for="maxPages">maxPages</label><input id="maxPages" type="text" value="" placeholder="可选硬上限" /></div>
-            <div class="paginate-only" style="display:none;"><label for="clickDelayMs">clickDelayMs</label><input id="clickDelayMs" type="text" value="1000" /></div>
-            <div class="paginate-only" style="display:none;"><label for="maxUnchangedSteps">maxUnchangedSteps</label><input id="maxUnchangedSteps" type="text" value="3" /></div>
-            <div style="grid-column:1 / -1;"><label for="imageFilterPattern">imageFilterPattern</label><input id="imageFilterPattern" type="text" value="auto" placeholder="auto: 自动识别 jpg/jpeg/png/webp/gif/bmp/avif/svg" /></div>
-            <div style="grid-column:1 / -1;"><label for="pageNumberPattern">pageNumberPattern</label><input id="pageNumberPattern" type="text" value="auto" placeholder="auto: 自动从文件名或 ?page=12 这类地址里提取页码" /></div>
+            <div>
+              <label id="maxStepsLabel" for="maxSteps">最大尝试步数 / maxSteps</label>
+              <input id="maxSteps" type="text" value="220" />
+              <div id="maxStepsNote" class="field-note">总保险丝。scroll 模式表示最多尝试多少步，paginate 模式表示最多尝试翻页多少次。</div>
+            </div>
+            <div>
+              <label for="stepDelayMs">步间等待 / stepDelayMs</label>
+              <input id="stepDelayMs" type="text" value="800" />
+              <div class="field-note">每一步之间的基础等待时间，单位毫秒。</div>
+            </div>
+            <div class="scroll-only">
+              <label for="scrollRatio">滚动比例 / scrollRatio</label>
+              <input id="scrollRatio" type="text" value="1.2" />
+            </div>
+            <div class="scroll-only">
+              <label for="noNewLimit">无新增上限 / noNewLimit</label>
+              <input id="noNewLimit" type="text" value="18" />
+            </div>
+            <div>
+              <label for="minWidth">最小宽度 / minWidth</label>
+              <input id="minWidth" type="text" value="180" />
+            </div>
+            <div>
+              <label for="minHeight">最小高度 / minHeight</label>
+              <input id="minHeight" type="text" value="180" />
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label for="imageSelector">图片选择器 / imageSelector</label>
+              <input id="imageSelector" type="text" value="img" />
+            </div>
+            <div class="scroll-only" style="grid-column:1 / -1;">
+              <label for="scrollContainerSelector">滚动容器 / scrollContainerSelector</label>
+              <input id="scrollContainerSelector" type="text" value="" placeholder="留空表示 window 滚动" />
+            </div>
+            <div class="paginate-only" style="grid-column:1 / -1;display:none;">
+              <label for="nextButtonSelector">下一页按钮 / nextButtonSelector</label>
+              <input id="nextButtonSelector" type="text" value="" placeholder=".flip_button_right.button" />
+            </div>
+            <div class="paginate-only" style="grid-column:1 / -1;display:none;">
+              <label for="pageIndicatorSelector">当前页指示器 / pageIndicatorSelector</label>
+              <input id="pageIndicatorSelector" type="text" value="" placeholder="#currentPageIndexTextField" />
+              <div class="field-note">尽量指向“当前页码”本身，不要直接写 <code>[aria-label*='page']</code> 这种会误匹配翻页按钮的选择器。</div>
+            </div>
+            <div class="paginate-only" style="display:none;">
+              <label for="maxPages">最多页数 / maxPages</label>
+              <input id="maxPages" type="text" value="" placeholder="可选硬上限" />
+              <div class="field-note">只在 paginate 模式下生效，用来限制最多翻多少页。</div>
+            </div>
+            <div class="paginate-only" style="display:none;">
+              <label for="clickMinWaitMs">点击后最小等待 / clickMinWaitMs</label>
+              <input id="clickMinWaitMs" type="text" value="1000" />
+              <div class="field-note">点下一页后，至少先固定等待多久。</div>
+            </div>
+            <div class="paginate-only" style="display:none;">
+              <label for="clickMaxWaitMs">点击后最大等待 / clickMaxWaitMs</label>
+              <input id="clickMaxWaitMs" type="text" value="2500" />
+              <div class="field-note">点下一页后，最多再观察多久页面有没有真正切换。</div>
+            </div>
+            <div class="paginate-only" style="display:none;">
+              <label for="maxUnchangedSteps">连续无变化步数 / maxUnchangedSteps</label>
+              <input id="maxUnchangedSteps" type="text" value="3" />
+              <div class="field-note">只在 paginate 模式下生效。连续几次点击后内容都没变，就认为到头了。</div>
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label for="imageFilterPattern">图片过滤规则 / imageFilterPattern</label>
+              <input id="imageFilterPattern" type="text" value="auto" placeholder="auto: 自动识别 jpg/jpeg/png/webp/gif/bmp/avif/svg" />
+            </div>
+            <div style="grid-column:1 / -1;">
+              <label for="pageNumberPattern">页码提取规则 / pageNumberPattern</label>
+              <input id="pageNumberPattern" type="text" value="auto" placeholder="auto: 自动从文件名或 ?page=12 这类地址里提取页码" />
+            </div>
           </div>
-          <label for="urlsText">图片链接列表</label>
-          <textarea id="urlsText" spellcheck="false" placeholder="https://example.com/page-001.jpg&#10;https://example.com/page-002.jpg"></textarea>
+          <label for="urlsText">图片链接列表 / Image URL List</label>
+          <textarea id="urlsText" spellcheck="false" placeholder="https://example.com/page-001.jpg&#10;https://example.com/page-002.webp"></textarea>
           <div style="height: 14px;"></div>
-          <label for="pagesJsonPreview">收集结果 JSON 预览</label>
+          <label for="pagesJsonPreview">收集结果预览 / Collection Preview</label>
           <pre id="pagesJsonPreview">[]</pre>
           <div style="height: 14px;"></div>
-          <label for="collectorSummary">停止条件与统计</label>
+          <label for="collectorSummary">停止条件与统计 / Stop Summary</label>
           <pre id="collectorSummary">尚未执行收集。</pre>
         </div>
         <div class="side">
           <div>
-            <label for="outputName">输出 PDF 文件名</label>
+            <label for="outputName">输出文件名 / Output PDF Name</label>
             <input id="outputName" type="text" value="document.pdf" />
           </div>
           <div>
-            <label for="txtFile">或上传 TXT 文件</label>
+            <label for="txtFile">或上传 TXT 文件 / Upload TXT</label>
             <input id="txtFile" type="file" accept=".txt,text/plain" />
           </div>
           <button id="collectBtn" type="button">启动 Chrome 并收集</button>
@@ -395,7 +457,7 @@ INDEX_HTML = """<!doctype html>
           <a id="downloadLink" class="download" href="">下载生成的 PDF</a>
           <div id="collectionMeta" class="meta"></div>
           <div class="note">
-            说明：收集器默认使用 auto 模式自动识别常见图片地址，包含相对 src；导出 PDF 这一步目前仍只支持公开可访问的 JPG/JPEG 链接。
+            说明：收集器默认使用 auto 模式自动识别常见图片地址，包含相对 src；导出 PDF 时支持公开可访问的 JPG/JPEG/PNG/WEBP 链接，PNG 和 WEBP 会自动转换为 JPEG 后写入 PDF。
           </div>
         </div>
       </div>
@@ -414,6 +476,8 @@ INDEX_HTML = """<!doctype html>
       const errorBox = document.getElementById("error");
       const downloadLink = document.getElementById("downloadLink");
       const collectionMeta = document.getElementById("collectionMeta");
+      const maxStepsLabel = document.getElementById("maxStepsLabel");
+      const maxStepsNote = document.getElementById("maxStepsNote");
       var collectedPagesJson = [];
 
       function toggleCollectorMode() {
@@ -424,13 +488,17 @@ INDEX_HTML = """<!doctype html>
         document.querySelectorAll(".paginate-only").forEach(node => {
           node.style.display = isPaginate ? "" : "none";
         });
+        maxStepsLabel.textContent = isPaginate ? "最大翻页次数 / maxSteps" : "最大尝试步数 / maxSteps";
+        maxStepsNote.textContent = isPaginate
+          ? "paginate 模式下，表示最多尝试点击“下一页”多少次。"
+          : "scroll 模式下，表示最多执行多少轮滚动尝试。";
       }
 
       function readCollectorOptions() {
         return {
           mode: collectorMode.value,
           maxSteps: document.getElementById("maxSteps").value,
-          delayMs: document.getElementById("delayMs").value,
+          stepDelayMs: document.getElementById("stepDelayMs").value,
           scrollRatio: document.getElementById("scrollRatio").value,
           noNewLimit: document.getElementById("noNewLimit").value,
           minWidth: document.getElementById("minWidth").value,
@@ -440,19 +508,36 @@ INDEX_HTML = """<!doctype html>
           nextButtonSelector: document.getElementById("nextButtonSelector").value,
           pageIndicatorSelector: document.getElementById("pageIndicatorSelector").value,
           maxPages: document.getElementById("maxPages").value,
-          clickDelayMs: document.getElementById("clickDelayMs").value,
+          clickMinWaitMs: document.getElementById("clickMinWaitMs").value,
+          clickMaxWaitMs: document.getElementById("clickMaxWaitMs").value,
           maxUnchangedSteps: document.getElementById("maxUnchangedSteps").value,
           imageFilterPattern: document.getElementById("imageFilterPattern").value,
           pageNumberPattern: document.getElementById("pageNumberPattern").value
         };
       }
 
+      function describeStopReason(reason) {
+        const labels = {
+          max_steps: "达到最大翻页次数或最大尝试步数",
+          max_pages: "达到最多页数上限",
+          reached_total_pages: "已到最后一页",
+          content_unchanged: "连续翻页后内容没有变化",
+          next_button_unavailable: "下一页按钮不可用",
+          no_new_limit: "连续多轮没有发现新图片"
+        };
+        return labels[reason] || reason || "unknown";
+      }
+
       function renderCollectorSummary(data) {
+        const stats = data.stats || {};
         collectorSummary.textContent = JSON.stringify({
+          pageTurns: stats.clicksRun || 0,
+          internalLoopSteps: stats.stepsRun || 0,
           stopReason: data.stopReason,
+          stopReasonLabel: describeStopReason(data.stopReason),
           stopDetails: data.stopDetails,
           totalPages: data.totalPages,
-          stats: data.stats || {},
+          stats: stats,
           configUsed: data.configUsed || {}
         }, null, 2);
       }
@@ -511,8 +596,9 @@ INDEX_HTML = """<!doctype html>
           collectedPagesJson = data.pagesJson;
           pagesJsonPreview.textContent = JSON.stringify(data.pagesJson, null, 2);
           renderCollectorSummary(data);
-          collectionMeta.textContent = `已收集 ${data.totalPages} 张图片链接，停止原因：${data.stopReason || "unknown"}。`;
-          statusBox.textContent = "收集完成，可以直接生成 PDF。";
+          const clicksRun = (data.stats && typeof data.stats.clicksRun === "number") ? data.stats.clicksRun : 0;
+          collectionMeta.textContent = `已收集 ${data.totalPages} 张图片链接，已翻页 ${clicksRun} 次，停止原因：${describeStopReason(data.stopReason)}。`;
+          statusBox.textContent = `收集完成，已翻页 ${clicksRun} 次，可以直接生成 PDF。`;
         } catch (error) {
           showError(error && error.message ? error.message : String(error));
         } finally {

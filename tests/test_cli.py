@@ -21,6 +21,12 @@ class CliTests(unittest.TestCase):
                 ".page-count",
                 "--max-pages",
                 "30",
+                "--step-delay-ms",
+                "900",
+                "--click-min-wait-ms",
+                "1200",
+                "--click-max-wait-ms",
+                "2400",
                 "--click-delay-ms",
                 "1200",
                 "--max-unchanged-steps",
@@ -33,6 +39,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(options["nextButtonSelector"], ".flip_button_right.button")
         self.assertEqual(options["pageIndicatorSelector"], ".page-count")
         self.assertEqual(options["maxPages"], 30)
+        self.assertEqual(options["stepDelayMs"], 900)
+        self.assertEqual(options["clickMinWaitMs"], 1200)
+        self.assertEqual(options["clickMaxWaitMs"], 2400)
         self.assertEqual(options["clickDelayMs"], 1200)
         self.assertEqual(options["maxUnchangedSteps"], 4)
 
