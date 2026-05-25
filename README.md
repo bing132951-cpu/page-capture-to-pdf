@@ -1,4 +1,4 @@
-# JPG Links to PDF
+# Image Links to PDF
 
 本地工具：自动启动一个项目专用可调试 Chrome 收集图片链接，或者直接接收已有链接列表，再按输入顺序合并成单个图片型 PDF。
 
@@ -23,7 +23,7 @@
 ## Requirements
 
 - Python 3.9+
-- 不依赖第三方 Python 包
+- 项目依赖 `Pillow` 用于把 PNG/WebP 等图片统一转成 JPEG 后写入 PDF
 
 ## Quick Start
 
@@ -33,6 +33,7 @@
 cd "/Users/weixukai/Downloads/spide前端"
 python3 -m venv .venv
 source .venv/bin/activate
+.venv/bin/pip install .
 python3 -m unittest discover -s tests -v
 ```
 
@@ -82,7 +83,8 @@ python3 -m scribd_exporter.cli collect \
   --mode paginate \
   --next-button-selector ".flip_button_right.button" \
   --page-indicator-selector ".page-count" \
-  --click-delay-ms 1200 \
+  --click-min-wait-ms 1200 \
+  --click-max-wait-ms 2500 \
   --output output/pages.json
 ```
 
@@ -107,7 +109,7 @@ python3 -m scribd_exporter.cli export \
 - TXT 文件中一行一个 URL
 - 支持 `http/https` 的 `.jpg/.jpeg/.png/.webp` 链接
 - PDF 页序按 TXT 行顺序决定
-- `png/webp` 会在本机自动转成 JPEG 后写入 PDF
+- `png/webp` 会由项目内置的 Pillow 转成 JPEG 后写入 PDF，不依赖 macOS 系统工具
 - 任意一张图片下载失败会立即停止，并指出失败页号和 URL
 
 如果不想自动打开浏览器：
@@ -118,7 +120,8 @@ python3 -m scribd_exporter.webapp --no-open
 
 ## Notes
 
-- 当前导出支持 JPG/JPEG，且会把 PNG/WebP 自动转成 JPEG 后写入 PDF
+- 当前导出支持 JPG/JPEG/PNG/WebP，非 JPEG 图片会自动转成 JPEG 后写入 PDF
+- 图片格式转换不依赖 macOS `sips`，在安装项目依赖后可跨平台运行
 - 收集器会新开一个项目专用 Chrome 实例，不复用你平时浏览器的标签页或登录状态
 - `paginate` 模式第一版只支持显式 `nextButtonSelector`，不做自动猜测
 - 产物是图片型 PDF，不包含文字层或 OCR

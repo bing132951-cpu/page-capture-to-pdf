@@ -1,9 +1,11 @@
 import os
-import subprocess
 import urllib.error
 import urllib.request
+from io import BytesIO
 from urllib.parse import urlparse
 from typing import Optional
+
+from PIL import Image, UnidentifiedImageError
 
 from .models import PageImage
 
@@ -34,6 +36,13 @@ class DownloadError(RuntimeError):
 
 
 def download_page_image(page: PageImage, output_dir: str, cookie: Optional[str] = None) -> str:
+    """Download one page image and normalize it to a local JPEG file.
+
+    Export always writes JPEG pages into the final PDF, so non-JPEG sources
+    are downloaded first and then converted locally. The caller only needs the
+    returned path and does not have to care whether the source was JPEG, PNG,
+    or WebP.
+    """
     os.makedirs(output_dir, exist_ok=True)
     target_path = os.path.join(output_dir, f"page-{page.page_number:04d}.jpg")
     request = urllib.request.Request(page.image_url, headers={"User-Agent": USER_AGENT})
@@ -53,6 +62,8 @@ def download_page_image(page: PageImage, output_dir: str, cookie: Optional[str] 
     if status != 200:
         raise DownloadError(page.page_number, page.image_url, f"HTTP {status} while downloading")
     if _is_jpeg_response(content_type, data):
+        # Fast path: if the server already gives us JPEG bytes, keep them as-is
+        # so we avoid an unnecessary re-encode step and preserve fidelity.
         with open(target_path, "wb") as handle:
             handle.write(data)
         return target_path
@@ -68,7 +79,9 @@ def download_page_image(page: PageImage, output_dir: str, cookie: Optional[str] 
     source_path = os.path.join(output_dir, f"page-{page.page_number:04d}{source_extension}")
     with open(source_path, "wb") as handle:
         handle.write(data)
-    _convert_to_jpeg_with_sips(page, source_path, target_path)
+    # Conversion works from in-memory bytes, but we also keep the source file on
+    # disk briefly so a failed run leaves a debuggable artifact near the output.
+    _convert_to_jpeg_with_pillow(page, data, source_path, target_path)
     return target_path
 
 
@@ -89,13 +102,39 @@ def _infer_source_extension(image_url: str, content_type: str) -> str:
     return ""
 
 
-def _convert_to_jpeg_with_sips(page: PageImage, source_path: str, target_path: str) -> None:
-    result = subprocess.run(
-        ["sips", "-s", "format", "jpeg", source_path, "--out", target_path],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0 or not os.path.exists(target_path):
-        stderr = (result.stderr or result.stdout or "").strip() or "unknown conversion error"
-        raise DownloadError(page.page_number, page.image_url, f"failed to convert image to JPEG ({stderr})")
+def _convert_to_jpeg_with_pillow(page: PageImage, image_bytes: bytes, source_path: str, target_path: str) -> None:
+    """Decode a non-JPEG payload with Pillow and save it as a JPEG file."""
+    try:
+        with Image.open(BytesIO(image_bytes)) as image:
+            converted = _prepare_image_for_jpeg(image)
+            converted.save(target_path, format="JPEG", quality=95)
+            converted.close()
+    except UnidentifiedImageError as exc:
+        raise DownloadError(page.page_number, page.image_url, "failed to decode image for JPEG conversion") from exc
+    except OSError as exc:
+        raise DownloadError(page.page_number, page.image_url, f"failed to convert image to JPEG ({exc})") from exc
+
+    if not os.path.exists(target_path):
+        raise DownloadError(page.page_number, page.image_url, "failed to convert image to JPEG (no output file)")
+
+    if os.path.exists(source_path) and source_path != target_path:
+        os.remove(source_path)
+
+
+def _prepare_image_for_jpeg(image: Image.Image) -> Image.Image:
+    """Return an image object Pillow can safely encode as JPEG.
+
+    JPEG does not support alpha channels or palette modes directly. We flatten
+    transparency onto a white background and normalize everything else to RGB so
+    downstream PDF generation only ever sees a consistent file format.
+    """
+    if image.mode in {"RGBA", "LA"}:
+        background = Image.new("RGB", image.size, (255, 255, 255))
+        alpha = image.getchannel("A")
+        background.paste(image.convert("RGBA"), mask=alpha)
+        return background
+    if image.mode == "P":
+        return _prepare_image_for_jpeg(image.convert("RGBA"))
+    if image.mode != "RGB":
+        return image.convert("RGB")
+    return image.copy()
