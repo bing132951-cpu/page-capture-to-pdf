@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scribd-exporter"
+version = "0.1.0"
+description = "Local tool for merging public JPG URLs into a PDF."
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+  { name = "weixukai" }
+]
+
+[project.scripts]
+scribd-exporter = "scribd_exporter.cli:main"
+scribd-exporter-web = "scribd_exporter.webapp:main"
+
+[tool.setuptools]
+packages = ["scribd_exporter"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

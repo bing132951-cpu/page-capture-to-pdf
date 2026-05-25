@@ -1,0 +1,9 @@
+.DS_Store
+.pytest_cache/
+.venv/
+.vscode/.ropeproject/
+__pycache__/
+*.pyc
+
+output/
+
